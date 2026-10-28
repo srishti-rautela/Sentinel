@@ -1,0 +1,175 @@
+# Sentinel Implementation-1.   Run: docker compose up --build   -> http://localhost:8080
+# Optional monitoring (Prometheus :9090, Grafana :3030):   docker compose --profile monitoring up --build
+#
+# Business services use restart: "no" ON PURPOSE: a crashed service stays down until SENTINEL
+# (incident-manager) detects, diagnoses, policy-checks and restarts it. Plain Docker would restart blindly.
+services:
+  api-gateway:
+    build: { context: ., args: { SERVICE: api-gateway } }
+    ports: ["3000:3000"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"], interval: 5s, timeout: 3s, retries: 3 }
+  auth-service:
+    build: { context: ., args: { SERVICE: auth-service } }
+    ports: ["3001:3001"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"], interval: 5s, timeout: 3s, retries: 3 }
+  product-service:
+    build: { context: ., args: { SERVICE: product-service } }
+    ports: ["3002:3002"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"], interval: 5s, timeout: 3s, retries: 3 }
+  order-service:
+    build: { context: ., args: { SERVICE: order-service } }
+    ports: ["3003:3003"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3003/health"], interval: 5s, timeout: 3s, retries: 3 }
+  cart-service:
+    build: { context: ., args: { SERVICE: cart-service } }
+    ports: ["3004:3004"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3004/health"], interval: 5s, timeout: 3s, retries: 3 }
+  payment-service:
+    build: { context: ., args: { SERVICE: payment-service } }
+    ports: ["3005:3005"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3005/health"], interval: 5s, timeout: 3s, retries: 3 }
+  notification-service:
+    build: { context: ., args: { SERVICE: notification-service } }
+    ports: ["3006:3006"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: "no"
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:3006/health"], interval: 5s, timeout: 3s, retries: 3 }
+  policy-engine:
+    build: { context: ., args: { SERVICE: policy-engine } }
+    ports: ["4003:4003"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: unless-stopped
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:4003/health"], interval: 5s, timeout: 3s, retries: 3 }
+  incident-manager:
+    build: { context: ., args: { SERVICE: incident-manager } }
+    ports: ["4001:4001"]
+    environment:
+      GATEWAY_URL: http://api-gateway:3000
+      AUTH_URL: http://auth-service:3001
+      PRODUCT_URL: http://product-service:3002
+      ORDER_URL: http://order-service:3003
+      CART_URL: http://cart-service:3004
+      PAYMENT_URL: http://payment-service:3005
+      NOTIFICATION_URL: http://notification-service:3006
+      INCIDENT_URL: http://incident-manager:4001
+      AI_URL: http://ai-engine:4002
+      POLICY_URL: http://policy-engine:4003
+    restart: unless-stopped
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:4001/health"], interval: 5s, timeout: 3s, retries: 3 }
+  ai-engine:
+    build: ./services/ai-engine
+    ports: ["4002:4002"]
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    ports: ["8080:80"]
+    depends_on: [api-gateway]
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: [monitoring]
+    ports: ["9090:9090"]
+    volumes: ["./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    restart: unless-stopped
+  grafana:
+    image: grafana/grafana:latest
+    profiles: [monitoring]
+    ports: ["3030:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes: ["./grafana/provisioning:/etc/grafana/provisioning:ro"]
+    restart: unless-stopped
