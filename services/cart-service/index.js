@@ -16,7 +16,7 @@ app.post('/items', ah(async (req, res) => {
   if (!p.ok) return res.status(404).json({ error: 'product not found' });
   const items = get(req.user.id);
   const ex = items.find((i) => i.productId === p.data.id);
-  ex ? (ex.qty += qty) : items.push({ productId: p.data.id, name: p.data.name, price: p.data.price, qty });
+  ex ? (ex.qty += qty) : items.push({ productId: p.data.id, name: p.data.name, price: p.data.price, image: p.data.image, emoji: p.data.emoji, qty });
   carts.set(req.user.id, items);
   res.status(201).json({ items, total: total(items) });
 }));

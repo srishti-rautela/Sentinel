@@ -4,6 +4,7 @@ const app = createService('product-service');
 const products = [
   {
     id: 1,
+    image: '/products/notebook.jpg',
     name: 'Pro Minimalist A5 Notebook',
     category: 'Stationery',
     price: 120,
@@ -18,6 +19,7 @@ const products = [
   },
   {
     id: 2,
+    image: '/products/gel-pens.jpg',
     name: 'Precision Gel Pen Set (Pack of 10)',
     category: 'Stationery',
     price: 80,
@@ -32,6 +34,7 @@ const products = [
   },
   {
     id: 3,
+    image: '/products/backpack.jpg',
     name: 'Urban Commuter Tech Backpack (25L)',
     category: 'Lifestyle',
     price: 1499,
@@ -46,6 +49,7 @@ const products = [
   },
   {
     id: 4,
+    image: '/products/flask.jpg',
     name: 'Insulated Thermal Flask (750ml)',
     category: 'Lifestyle',
     price: 349,
@@ -60,6 +64,7 @@ const products = [
   },
   {
     id: 5,
+    image: '/products/desk-lamp.jpg',
     name: 'Smart Ergonomic Desk Lamp (LED)',
     category: 'Desk Setup',
     price: 799,
@@ -74,6 +79,7 @@ const products = [
   },
   {
     id: 6,
+    image: '/products/keyboard.jpg',
     name: 'Wireless Mechanical Keyboard (RGB)',
     category: 'Keyboards & Tech',
     price: 2499,
@@ -88,6 +94,7 @@ const products = [
   },
   {
     id: 7,
+    image: '/products/headphones.jpg',
     name: 'Active Noise-Cancelling Headphones',
     category: 'Keyboards & Tech',
     price: 3299,
@@ -102,6 +109,7 @@ const products = [
   },
   {
     id: 8,
+    image: '/products/desk-mat.jpg',
     name: 'Dual-Sided Vegan Leather Desk Mat',
     category: 'Desk Setup',
     price: 499,
@@ -122,7 +130,7 @@ app.get('/:id', (req, res) => {
   p ? res.json(p) : res.status(404).json({ error: 'product not found' });
 });
 app.post('/', (req, res) => {
-  const { name, price, stock, category, description } = req.body || {};
+  const { name, price, stock, category, description, image } = req.body || {};
   if (!name || !(price >= 0)) return res.status(400).json({ error: 'name and price required' });
   const p = {
     id: products.length + 1,
@@ -131,6 +139,7 @@ app.post('/', (req, res) => {
     price,
     stock: stock ?? 0,
     emoji: '📦',
+    image: image || null,
     rating: 5.0,
     reviewsCount: 1,
     description: description || 'New product added to catalog.'

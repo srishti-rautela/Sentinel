@@ -1,14 +1,48 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, setToken, errText } from './api.js';
 import Sentinel from './Sentinel.jsx';
+import { ThemeToggle } from './theme.jsx';
+import ProductImage from './ProductImage.jsx';
 
 const CRITICAL = ['payment-service', 'order-service', 'auth-service', 'api-gateway'];
 
-const STATUS_CONFIG = {
-  up: { bg: 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400', dot: 'bg-emerald-400', label: 'HEALTHY' },
-  unhealthy: { bg: 'bg-amber-950/60 border-amber-500/40 text-amber-400', dot: 'bg-amber-400', label: 'DEGRADED' },
-  down: { bg: 'bg-rose-950/60 border-rose-500/40 text-rose-400', dot: 'bg-rose-400 animate-pulse', label: 'CRASHED' },
+const STATUS = {
+  up: { dot: 'bg-emerald-500', text: 'text-emerald-400', label: 'Healthy' },
+  unhealthy: { dot: 'bg-amber-500', text: 'text-amber-400', label: 'Degraded' },
+  down: { dot: 'bg-rose-500', text: 'text-rose-400', label: 'Down' },
 };
+
+const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+
+/* ---------- shared bits ---------- */
+const ICONS = {
+  shield: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+  cart: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+  search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  close: 'M6 18L18 6M6 6l12 12',
+  refresh: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  check: 'M5 13l4 4L19 7',
+  warn: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  star: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+};
+const Icon = ({ name, className = 'w-4 h-4', fill = 'none' }) => (
+  <svg className={className} fill={fill} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={ICONS[name]} />
+  </svg>
+);
+
+const inputCls = 'w-full h-9 rounded-md border border-line bg-canvas px-3 text-sm text-ink placeholder:text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 transition';
+const btnPrimary = 'inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors';
+const btnGhost = 'inline-flex items-center justify-center gap-2 h-9 px-3 rounded-md border border-line text-sm text-body hover:bg-subtle hover:text-ink transition-colors';
+
+function Logo() {
+  return (
+    <div className="flex items-center gap-2 text-ink">
+      <Icon name="shield" className="w-5 h-5 text-accent" />
+      <span className="text-[15px] font-semibold tracking-tight">Sentinel</span>
+    </div>
+  );
+}
 
 function useHealth() {
   const [health, setHealth] = useState([]);
@@ -30,7 +64,7 @@ function useHealth() {
           evs.push({
             t: new Date().toLocaleTimeString(),
             name: s.name,
-            msg: s.status === 'up' ? 'Health restored (Verified)' : s.status === 'down' ? 'Service DOWN (Process Terminated)' : 'Failing Health Checks (HTTP 503)',
+            msg: s.status === 'up' ? 'Health restored' : s.status === 'down' ? 'Service down (process terminated)' : 'Failing health checks (HTTP 503)',
             status: s.status,
           });
         }
@@ -46,52 +80,94 @@ function useHealth() {
   return { health, log };
 }
 
-/* Top Telemetry Strip */
-function StatusStrip({ health }) {
-  const degradedCount = health.filter((s) => s.status !== 'up').length;
+/* ---------- header ---------- */
+const TABS = [
+  { id: 'shop', label: 'Store' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'system', label: 'System' },
+  { id: 'sentinel', label: 'Incidents' },
+];
 
+function Tabs({ tab, setTab, className = '' }) {
   return (
-    <div className="bg-slate-950 border-b border-slate-800/80 px-4 py-2 flex flex-wrap items-center justify-between gap-y-2 text-xs">
-      <div className="flex items-center gap-3">
-        <span className="font-mono font-bold tracking-wider text-slate-400 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-indigo-500" />
-          MESH TELEMETRY
-        </span>
-        <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono border ${
-          degradedCount === 0
-            ? 'bg-emerald-950 text-emerald-400 border-emerald-800/60'
-            : 'bg-rose-950 text-rose-300 border-rose-800 animate-pulse'
-        }`}>
-          {degradedCount === 0 ? 'ALL SYSTEMS OPERATIONAL (7/7)' : `${degradedCount} SERVICES DEGRADED / UNHEALTHY`}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-4 overflow-x-auto">
-        {health.map((s) => {
-          const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.down;
-          return (
-            <div key={s.name} className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-              <span className="font-medium text-slate-300">{s.name.replace('-service', '')}</span>
-              <span className="text-[10px] text-slate-500 font-mono">
-                {s.latencyMs != null ? `${s.latencyMs}ms` : '—'}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <nav className={`flex items-center gap-1 ${className}`}>
+      {TABS.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => setTab(t.id)}
+          className={`h-8 px-3 rounded-md text-sm whitespace-nowrap transition-colors ${
+            tab === t.id ? 'bg-subtle text-ink font-medium' : 'text-muted hover:text-ink'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </nav>
   );
 }
 
-/* Modern Enterprise Login Screen */
+function Header({ user, tab, setTab, health, cartCount, onCart, onLogout }) {
+  const degraded = health.filter((s) => s.status !== 'up').length;
+  const status = !health.length
+    ? { dot: 'bg-zinc-500', label: 'Connecting' }
+    : degraded === 0
+      ? { dot: 'bg-emerald-500', label: 'All systems operational' }
+      : { dot: 'bg-rose-500 animate-pulse', label: `${degraded} service${degraded > 1 ? 's' : ''} affected` };
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-line bg-canvas/85 backdrop-blur">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-8">
+            <Logo />
+            {user && <Tabs tab={tab} setTab={setTab} className="hidden md:flex" />}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {user && (
+              <button
+                onClick={() => setTab('system')}
+                className="hidden lg:flex items-center gap-2 h-8 px-3 rounded-md text-xs text-muted hover:text-ink hover:bg-subtle transition-colors"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                {status.label}
+              </button>
+            )}
+            <ThemeToggle />
+            {user && (
+              <>
+                <button onClick={onCart} className={`${btnGhost} relative`} aria-label="Open cart">
+                  <Icon name="cart" />
+                  <span className="hidden sm:inline">Cart</span>
+                  {cartCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[11px] font-medium flex items-center justify-center tnum">
+                      {cartCount}
+                    </span>
+                  )}
+                </button>
+                <span className="hidden xl:inline text-xs text-muted max-w-[140px] truncate">{user.name || user.email}</span>
+                <button onClick={onLogout} className="h-8 px-2.5 rounded-md text-xs text-muted hover:text-ink hover:bg-subtle transition-colors">
+                  Sign out
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        {user && <Tabs tab={tab} setTab={setTab} className="md:hidden overflow-x-auto scrollbar-none pb-2 -mx-1 px-1" />}
+      </div>
+    </header>
+  );
+}
+
+/* ---------- login ---------- */
 function Login({ onLogin }) {
   const [f, setF] = useState({ email: 'demo@sentinel.com', password: 'demo123', name: 'DevOps Engineer' });
   const [mode, setMode] = useState('login');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const submit = async () => {
+  const submit = async (e) => {
+    e?.preventDefault();
     setErr('');
     setBusy(true);
     if (mode === 'register') {
@@ -104,114 +180,102 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4">
-      <div className="max-w-md w-full p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl relative overflow-hidden">
-        <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 mx-auto flex items-center justify-center text-indigo-400 mb-3 shadow-inner">
-            <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Sentinel Platform Access</h1>
-          <p className="text-xs text-slate-400 mt-1">Autonomous Observability & Microservices Workload</p>
+    <div className="flex-1 flex items-center justify-center px-4 py-16">
+      <form onSubmit={submit} className="w-full max-w-sm space-y-5">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">{mode === 'login' ? 'Sign in' : 'Create account'}</h1>
+          <p className="text-sm text-muted">Continue to the Sentinel platform.</p>
         </div>
 
-        <div className="space-y-3">
+        <div className="rounded-xl border border-line bg-surface p-5 space-y-4">
           {mode === 'register' && (
-            <div>
-              <label className="text-xs font-medium text-slate-400 block mb-1">Full Name</label>
-              <input
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-                placeholder="DevOps Lead"
-                value={f.name}
-                onChange={(e) => setF({ ...f, name: e.target.value })}
-              />
-            </div>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-medium text-body">Full name</span>
+              <input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+            </label>
           )}
-          <div>
-            <label className="text-xs font-medium text-slate-400 block mb-1">Operator Email</label>
-            <input
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition font-mono"
-              placeholder="demo@sentinel.com"
-              value={f.email}
-              onChange={(e) => setF({ ...f, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-400 block mb-1">Password</label>
-            <input
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition"
-              type="password"
-              placeholder="••••••••"
-              value={f.password}
-              onChange={(e) => setF({ ...f, password: e.target.value })}
-            />
-          </div>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-body">Email</span>
+            <input className={inputCls} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-xs font-medium text-body">Password</span>
+            <input className={inputCls} type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+          </label>
 
-          {err && (
-            <div className="p-3 rounded-lg bg-rose-950/60 border border-rose-800/80 text-rose-300 text-xs">
-              {err}
-            </div>
-          )}
+          {err && <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-400">{err}</div>}
 
-          <button
-            onClick={submit}
-            disabled={busy}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-950 transition flex items-center justify-center gap-2 mt-2"
-          >
-            {busy ? 'Authenticating...' : mode === 'login' ? 'Sign In to Platform' : 'Create Operator Account'}
+          <button type="submit" disabled={busy} className={`${btnPrimary} w-full`}>
+            {busy ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
           </button>
-
-          <div className="flex items-center justify-between pt-3 border-t border-slate-800/80 text-xs">
-            <button
-              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-              className="text-indigo-400 hover:text-indigo-300"
-            >
-              {mode === 'login' ? 'Register new operator' : 'Back to sign in'}
-            </button>
-            <span className="text-slate-500 font-mono">Demo: demo123</span>
-          </div>
         </div>
-      </div>
+
+        <div className="flex items-center justify-between text-xs">
+          <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-link hover:underline">
+            {mode === 'login' ? 'Create an account' : 'Back to sign in'}
+          </button>
+          <span className="text-muted">Demo password: demo123</span>
+        </div>
+      </form>
     </div>
   );
 }
 
-/* Production-Grade E-Commerce Storefront */
-function Shop({ onCart, toast, onOpenCart }) {
+/* ---------- store ---------- */
+function Stars({ rating, count }) {
+  return (
+    <div className="flex items-center gap-1 text-xs text-muted">
+      <Icon name="star" className="w-3.5 h-3.5 text-amber-500" fill="currentColor" />
+      <span className="text-body tnum">{rating || 4.8}</span>
+      {count != null && <span className="tnum">({count})</span>}
+    </div>
+  );
+}
+
+function Price({ p, size = 'text-sm' }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className={`${size} font-semibold text-ink tnum`}>{money(p.price)}</span>
+      {p.originalPrice && <span className="text-xs text-muted line-through tnum">{money(p.originalPrice)}</span>}
+    </div>
+  );
+}
+
+function Shop({ onCart, toast }) {
   const [products, setProducts] = useState([]);
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('featured');
   const [err, setErr] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [quickViewProduct, setQuickViewProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [quick, setQuick] = useState(null);
 
   const load = async () => {
     setLoading(true);
     const r = await api('GET', '/api/products');
     setLoading(false);
-    if (r.ok) {
-      setProducts(r.data || []);
-      setErr('');
-    } else {
-      setErr(errText(r));
-    }
+    if (r.ok) { setProducts(r.data || []); setErr(''); } else { setErr(errText(r)); }
   };
-
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (!quick) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setQuick(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [quick]);
 
   const add = async (p) => {
     const r = await api('POST', '/api/cart/items', { productId: p.id, qty: 1 });
-    toast(r.ok ? `✓ Added ${p.name} to cart` : errText(r), r.ok);
+    toast(r.ok ? `${p.name} added to cart` : errText(r), r.ok);
     if (r.ok) onCart();
   };
 
   const categories = ['All', 'Keyboards & Tech', 'Desk Setup', 'Stationery', 'Lifestyle'];
-
+  const q = search.toLowerCase();
   const filtered = products
     .filter((p) => category === 'All' || p.category === category)
-    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || (p.description && p.description.toLowerCase().includes(search.toLowerCase())))
+    .filter((p) => p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q))
     .sort((a, b) => {
       if (sort === 'price-low') return a.price - b.price;
       if (sort === 'price-high') return b.price - a.price;
@@ -220,107 +284,41 @@ function Shop({ onCart, toast, onOpenCart }) {
     });
 
   return (
-    <div className="space-y-6">
-      {/* High-Impact E-Commerce Promotional Hero Banner */}
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 shadow-2xl p-6 sm:p-8">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
-        <div className="max-w-2xl relative z-10 space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-900/60 border border-indigo-700/60 text-xs font-semibold text-indigo-300">
-            <span>🚀 FESTIVAL COLLECTION 2026</span>
-            <span className="w-1 h-1 rounded-full bg-indigo-400" />
-            <span>CODE: SENTINEL20 (20% OFF)</span>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
-            Curated Developer Gear & <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Workspace Setup</span>
-          </h1>
-
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
-            High-performance essentials engineered for modern creators. Fully backed by Sentinel's autonomous self-healing microservice cluster.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-              Automated Stock Protection
-            </span>
-            <span className="flex items-center gap-1.5 text-cyan-400 font-medium">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Zero-Downtime Microservices
-            </span>
-            <span className="flex items-center gap-1.5 text-indigo-400 font-medium">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Instant Rollback on Faults
-            </span>
-          </div>
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Store</h1>
+          <p className="text-sm text-muted mt-1">Workspace essentials and developer gear.</p>
         </div>
+        <span className="text-xs text-muted tnum">{filtered.length} products</span>
       </div>
 
-      {/* Product Search, Filter & Category Control Bar */}
-      <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-lg space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1 max-w-md">
-            <svg className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search gear, notebooks, keyboards, accessories..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-white">
-                ✕
-              </button>
-            )}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="relative flex-1 md:max-w-xs">
+            <Icon name="search" className="w-4 h-4 absolute left-3 top-2.5 text-muted" />
+            <input className={`${inputCls} pl-9`} placeholder="Search products" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-
-          {/* Sort Controls & Refresh */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400 text-xs hidden sm:inline">Sort:</span>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
-            >
-              <option value="featured">Featured Picks</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="rating">Top Rated</option>
+          <div className="flex items-center gap-2 md:ml-auto">
+            <select value={sort} onChange={(e) => setSort(e.target.value)} className={`${inputCls} !w-auto pr-8`}>
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: low to high</option>
+              <option value="price-high">Price: high to low</option>
+              <option value="rating">Top rated</option>
             </select>
-
-            <button
-              onClick={load}
-              disabled={loading}
-              className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5"
-            >
-              <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
+            <button onClick={load} disabled={loading} className={`${btnGhost} !px-2.5`} aria-label="Refresh products">
+              <Icon name="refresh" className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${
-                category === c
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800/80 hover:border-slate-700'
+              className={`h-8 px-3 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${
+                category === c ? 'bg-ink text-canvas border-ink' : 'border-line text-muted hover:text-ink hover:bg-subtle'
               }`}
             >
               {c}
@@ -330,174 +328,90 @@ function Shop({ onCart, toast, onOpenCart }) {
       </div>
 
       {err && (
-        <div className="p-4 rounded-xl bg-rose-950/50 border border-rose-800 text-rose-300 text-xs flex items-center justify-between">
+        <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-400 flex items-center justify-between">
           <span>{err}</span>
-          <button className="underline font-semibold" onClick={load}>Retry Catalog</button>
+          <button className="underline" onClick={load}>Retry</button>
         </div>
       )}
 
-      {/* Rich E-Commerce Product Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filtered.map((p) => (
-          <div
-            key={p.id}
-            className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/50 transition-all duration-200 shadow-md flex flex-col justify-between group relative overflow-hidden"
-          >
-            {/* Top Badges */}
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 uppercase tracking-wider">
-                {p.category || 'General'}
-              </span>
-              {p.badge && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-700/60">
-                  {p.badge}
-                </span>
-              )}
+      {loading && !products.length ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="space-y-3 animate-pulse">
+              <div className="aspect-square rounded-xl bg-subtle" />
+              <div className="h-3 w-1/3 rounded bg-subtle" />
+              <div className="h-4 w-3/4 rounded bg-subtle" />
             </div>
-
-            {/* Visual Icon Avatar with Frame */}
-            <div
-              onClick={() => setQuickViewProduct(p)}
-              className="py-6 px-4 rounded-xl bg-gradient-to-b from-slate-950 to-slate-900 border border-slate-800/80 text-center cursor-pointer group-hover:border-slate-700 transition"
-            >
-              <div className="text-6xl mb-1 transform group-hover:scale-110 transition duration-200">
-                {p.emoji}
-              </div>
-              <span className="text-[11px] text-indigo-400 font-medium opacity-0 group-hover:opacity-100 transition">
-                Click for Specs & Telemetry
-              </span>
-            </div>
-
-            {/* Details */}
-            <div className="mt-3 space-y-1.5 flex-1">
-              <div className="flex items-center gap-1 text-amber-400 text-xs">
-                <span>{'★'.repeat(Math.round(p.rating || 5))}</span>
-                <span className="text-slate-400 font-mono text-[11px] ml-1">
-                  {p.rating || 4.8} ({p.reviewsCount || 45})
-                </span>
-              </div>
-
-              <h3
-                onClick={() => setQuickViewProduct(p)}
-                className="font-bold text-sm text-white group-hover:text-indigo-300 transition cursor-pointer line-clamp-1"
+          ))}
+        </div>
+      ) : !filtered.length ? (
+        <div className="py-20 text-center text-sm text-muted">No products match your search.</div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-8">
+          {filtered.map((p) => (
+            <article key={p.id} className="group flex flex-col">
+              <button
+                onClick={() => setQuick(p)}
+                className="relative aspect-square overflow-hidden rounded-xl border border-line bg-subtle flex items-center justify-center"
+                aria-label={`View ${p.name}`}
               >
-                {p.name}
-              </h3>
-
-              <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed font-sans">
-                {p.description || 'Precision crafted for daily engineering workflow and productivity.'}
-              </p>
-            </div>
-
-            {/* Price & Stock Meter */}
-            <div className="mt-4 pt-3 border-t border-slate-800/80 space-y-2">
-              <div className="flex items-baseline justify-between">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-base font-bold font-mono text-white">₹{p.price}</span>
-                  {p.originalPrice && (
-                    <span className="text-xs font-mono text-slate-500 line-through">₹{p.originalPrice}</span>
-                  )}
-                </div>
+                <ProductImage product={p} className="w-full h-full transition-transform duration-300 group-hover:scale-[1.03]" emojiClass="text-6xl" />
                 {p.discount && (
-                  <span className="text-[11px] font-bold text-emerald-400 font-mono">
+                  <span className="absolute left-2 top-2 rounded-md bg-surface/95 border border-line px-1.5 py-0.5 text-[11px] font-medium text-ink">
                     {p.discount}
                   </span>
                 )}
-              </div>
-
-              {/* Stock Meter */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
-                  <span>Stock Available</span>
-                  <span className={p.stock < 50 ? 'text-amber-400' : 'text-slate-400'}>
-                    {p.stock} units
-                  </span>
-                </div>
-                <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${p.stock < 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                    style={{ width: `${Math.min(100, (p.stock / 200) * 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  onClick={() => setQuickViewProduct(p)}
-                  className="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
-                >
-                  Quick View
-                </button>
-                <button
-                  onClick={() => add(p)}
-                  className="py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition flex items-center justify-center gap-1"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Add
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick-View Detailed Product Modal */}
-      {quickViewProduct && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative">
-            <button
-              onClick={() => setQuickViewProduct(null)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg"
-            >
-              ✕
-            </button>
-
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-4xl shrink-0">
-                {quickViewProduct.emoji}
-              </div>
-              <div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 uppercase">
-                  {quickViewProduct.category}
-                </span>
-                <h3 className="text-lg font-bold text-white mt-1">{quickViewProduct.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg font-bold font-mono text-indigo-400">₹{quickViewProduct.price}</span>
-                  {quickViewProduct.originalPrice && (
-                    <span className="text-xs font-mono text-slate-500 line-through">₹{quickViewProduct.originalPrice}</span>
-                  )}
-                  {quickViewProduct.discount && (
-                    <span className="text-xs font-bold text-emerald-400 font-mono">({quickViewProduct.discount})</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="text-xs text-slate-300 leading-relaxed p-3.5 rounded-xl bg-slate-950 border border-slate-800/80">
-              {quickViewProduct.description}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 font-mono">
-                <span className="text-slate-500 block text-[10px]">MICROSERVICE OWNER</span>
-                <span className="text-indigo-400 font-bold">product-service :3002</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 font-mono">
-                <span className="text-slate-500 block text-[10px]">INVENTORY STATUS</span>
-                <span className="text-emerald-400 font-bold">{quickViewProduct.stock} Units In Stock</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                onClick={() => { add(quickViewProduct); setQuickViewProduct(null); }}
-                className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg transition flex items-center justify-center gap-2"
-              >
-                Add to Cart (₹{quickViewProduct.price})
               </button>
+
+              <div className="pt-3 flex-1 space-y-1">
+                <div className="text-xs text-muted">{p.category}</div>
+                <button onClick={() => setQuick(p)} className="block text-left text-sm font-medium text-ink line-clamp-1 hover:underline">
+                  {p.name}
+                </button>
+                <div className="flex items-center justify-between">
+                  <Stars rating={p.rating} count={p.reviewsCount} />
+                  {p.stock < 50 && <span className="text-[11px] text-amber-400">Only {p.stock} left</span>}
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <Price p={p} />
+                <button onClick={() => add(p)} className={`${btnGhost} !h-8 !px-3 text-xs`}>Add</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {quick && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setQuick(null)}>
+          <div className="relative w-full max-w-3xl rounded-2xl border border-line bg-surface shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setQuick(null)} className="absolute right-3 top-3 z-10 h-8 w-8 rounded-md flex items-center justify-center text-muted hover:text-ink hover:bg-subtle" aria-label="Close">
+              <Icon name="close" />
+            </button>
+            <div className="grid md:grid-cols-2">
+              <div className="aspect-square bg-subtle flex items-center justify-center">
+                <ProductImage product={quick} className="w-full h-full" emojiClass="text-8xl" />
+              </div>
+              <div className="p-6 flex flex-col">
+                <div className="text-xs text-muted">{quick.category}</div>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink pr-8">{quick.name}</h2>
+                <div className="mt-2"><Stars rating={quick.rating} count={quick.reviewsCount} /></div>
+                <div className="mt-4 flex items-baseline gap-3">
+                  <Price p={quick} size="text-2xl" />
+                  {quick.discount && <span className="text-xs font-medium text-emerald-400">{quick.discount}</span>}
+                </div>
+                <p className="mt-4 text-sm text-body leading-relaxed">{quick.description}</p>
+
+                <dl className="mt-5 divide-y divide-line border-y border-line text-sm">
+                  <div className="flex justify-between py-2"><dt className="text-muted">Availability</dt><dd className="text-ink tnum">{quick.stock} in stock</dd></div>
+                  <div className="flex justify-between py-2"><dt className="text-muted">Served by</dt><dd className="text-ink font-mono text-xs">product-service :3002</dd></div>
+                </dl>
+
+                <button onClick={() => { add(quick); setQuick(null); }} className={`${btnPrimary} mt-auto w-full !h-10`}>
+                  Add to cart · {money(quick.price)}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -506,8 +420,8 @@ function Shop({ onCart, toast, onOpenCart }) {
   );
 }
 
-/* Production-Grade Slide-Over Cart Drawer & Checkout Flow */
-function CartDrawer({ isOpen, onClose, toast, goOrders }) {
+/* ---------- cart ---------- */
+function CartDrawer({ isOpen, onClose, toast, goOrders, onChange }) {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [busy, setBusy] = useState(false);
   const [promoCode, setPromoCode] = useState('');
@@ -518,26 +432,22 @@ function CartDrawer({ isOpen, onClose, toast, goOrders }) {
     const r = await api('GET', '/api/cart');
     if (r.ok) setCart(r.data || { items: [], total: 0 });
   };
+  useEffect(() => { if (isOpen) load(); }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen) load();
-  }, [isOpen]);
+    if (!isOpen) return undefined;
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
 
-  const remove = async (id) => {
-    await api('DELETE', `/api/cart/items/${id}`);
-    load();
-  };
+  const remove = async (id) => { await api('DELETE', `/api/cart/items/${id}`); await load(); onChange?.(); };
 
   const applyPromo = () => {
-    if (promoCode.trim().toUpperCase() === 'SENTINEL20') {
-      setAppliedPromo({ code: 'SENTINEL20', discountPercent: 20 });
-      toast('✓ Coupon SENTINEL20 applied! 20% discount added.', true);
-    } else if (promoCode.trim().toUpperCase() === 'FREESHIP') {
-      setAppliedPromo({ code: 'FREESHIP', discountPercent: 5 });
-      toast('✓ Free shipping coupon applied!', true);
-    } else {
-      toast('Invalid promo code. Try SENTINEL20', false);
-    }
+    const code = promoCode.trim().toUpperCase();
+    if (code === 'SENTINEL20') { setAppliedPromo({ code, discountPercent: 20 }); toast('Coupon SENTINEL20 applied', true); }
+    else if (code === 'FREESHIP') { setAppliedPromo({ code, discountPercent: 5 }); toast('Coupon FREESHIP applied', true); }
+    else toast('Invalid coupon code', false);
     setPromoCode('');
   };
 
@@ -549,9 +459,9 @@ function CartDrawer({ isOpen, onClose, toast, goOrders }) {
     setCheckoutErr('');
     const r = await api('POST', '/api/orders/checkout');
     setBusy(false);
-
     if (r.ok) {
-      toast(`✓ Order #${r.data.id} confirmed! Notification dispatched.`, true);
+      toast(`Order #${r.data.id} confirmed`, true);
+      onChange?.();
       onClose();
       goOrders();
     } else {
@@ -562,159 +472,84 @@ function CartDrawer({ isOpen, onClose, toast, goOrders }) {
   };
 
   if (!isOpen) return null;
+  const count = cart.items?.length || 0;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity" onClick={onClose} />
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <aside className="absolute inset-y-0 right-0 w-full max-w-md bg-surface border-l border-line shadow-2xl flex flex-col">
+        <div className="h-14 px-5 border-b border-line flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink">Cart <span className="text-muted font-normal tnum">({count})</span></h2>
+          <button onClick={onClose} className="h-8 w-8 rounded-md flex items-center justify-center text-muted hover:text-ink hover:bg-subtle" aria-label="Close cart">
+            <Icon name="close" />
+          </button>
+        </div>
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col justify-between">
-          {/* Header */}
-          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-sm">Shopping Cart</h3>
-                <span className="text-[11px] text-slate-400 font-mono">{cart.items?.length || 0} unique items</span>
-              </div>
-            </div>
-
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg">
-              ✕
-            </button>
+        {checkoutErr && (
+          <div className="m-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs space-y-1">
+            <div className="flex items-center gap-1.5 font-medium text-amber-400"><Icon name="warn" className="w-4 h-4" /> Payment failed</div>
+            <p className="text-body">{checkoutErr}</p>
+            <p className="text-muted">Stock was returned to the catalog and an incident was opened in Incidents.</p>
           </div>
+        )}
 
-          {/* Failure Alert (If payment-service crashed) */}
-          {checkoutErr && (
-            <div className="m-4 p-4 rounded-xl bg-amber-950/70 border border-amber-500/70 text-amber-200 text-xs space-y-1.5 shadow-lg">
-              <div className="font-bold flex items-center gap-1.5 text-amber-300">
-                <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Payment Failure Detected & Isolated
-              </div>
-              <p className="leading-relaxed">{checkoutErr}</p>
-              <div className="p-2 rounded bg-black/40 border border-amber-700/50 text-[11px] text-amber-300 font-mono">
-                🛡️ Sentinel Rollback: Stock automatically returned to catalog. Payment service incident created in Sentinel tab!
-              </div>
+        <div className="flex-1 overflow-y-auto px-5">
+          {!count ? (
+            <div className="h-full flex flex-col items-center justify-center text-center gap-1 py-20">
+              <Icon name="cart" className="w-8 h-8 text-muted mb-2" />
+              <div className="text-sm font-medium text-ink">Your cart is empty</div>
+              <p className="text-xs text-muted">Add products from the store to get started.</p>
             </div>
-          )}
-
-          {/* Items Body */}
-          <div className="flex-1 overflow-y-auto p-5 divide-y divide-slate-800/80">
-            {!cart.items?.length ? (
-              <div className="py-20 text-center space-y-3">
-                <div className="text-5xl">🛒</div>
-                <div className="text-sm font-medium text-slate-300">Your cart is empty</div>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Browse the developer gear collection and add items to experience the live checkout pipeline.
-                </p>
-              </div>
-            ) : (
-              cart.items.map((i) => (
-                <div key={i.productId} className="py-3.5 flex items-center justify-between gap-3 text-xs">
-                  <div>
-                    <h4 className="font-bold text-white text-sm">{i.name}</h4>
-                    <div className="text-slate-400 font-mono mt-0.5">
-                      Qty: {i.qty} × ₹{i.price}
-                    </div>
+          ) : (
+            <ul className="divide-y divide-line">
+              {cart.items.map((i) => (
+                <li key={i.productId} className="py-4 flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-md overflow-hidden border border-line bg-subtle flex items-center justify-center shrink-0">
+                    <ProductImage product={i} className="w-full h-full" emojiClass="text-2xl" />
                   </div>
-
-                  <div className="text-right">
-                    <div className="font-mono font-bold text-white text-sm">
-                      ₹{i.price * i.qty}
-                    </div>
-                    <button
-                      onClick={() => remove(i.productId)}
-                      className="text-[11px] text-rose-400 hover:text-rose-300 transition mt-1"
-                    >
-                      Remove
-                    </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-ink truncate">{i.name}</div>
+                    <div className="text-xs text-muted tnum mt-0.5">{i.qty} × {money(i.price)}</div>
+                    <button onClick={() => remove(i.productId)} className="text-xs text-muted hover:text-rose-400 mt-1">Remove</button>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Footer & Checkout Box */}
-          {cart.items?.length > 0 && (
-            <div className="p-5 border-t border-slate-800 bg-slate-950/80 space-y-3.5">
-              {/* Promo Code Input */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Coupon (e.g. SENTINEL20)"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white uppercase font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                />
-                <button
-                  onClick={applyPromo}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-white font-medium transition"
-                >
-                  Apply
-                </button>
-              </div>
-
-              {appliedPromo && (
-                <div className="flex items-center justify-between text-xs text-emerald-400 bg-emerald-950/50 p-2 rounded-lg border border-emerald-800/60 font-mono">
-                  <span>Coupon {appliedPromo.code} applied (-{appliedPromo.discountPercent}%)</span>
-                  <button onClick={() => setAppliedPromo(null)} className="text-slate-400 hover:text-white">✕</button>
-                </div>
-              )}
-
-              {/* Price Breakdown */}
-              <div className="space-y-1.5 text-xs font-mono pt-1">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Cart Subtotal</span>
-                  <span>₹{cart.total}</span>
-                </div>
-                {appliedPromo && (
-                  <div className="flex items-center justify-between text-emerald-400">
-                    <span>Discount</span>
-                    <span>-₹{discountAmount}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Express Delivery</span>
-                  <span className="text-emerald-400">FREE</span>
-                </div>
-                <div className="flex items-center justify-between text-white font-bold text-sm pt-2 border-t border-slate-800">
-                  <span>Final Total</span>
-                  <span className="text-base text-indigo-400">₹{finalTotal}</span>
-                </div>
-              </div>
-
-              {/* Checkout Stepper Button */}
-              <button
-                onClick={checkout}
-                disabled={busy}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition flex items-center justify-center gap-2"
-              >
-                {busy ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Executing Order Pipeline...
-                  </>
-                ) : (
-                  `Authorize & Checkout (₹${finalTotal})`
-                )}
-              </button>
-            </div>
+                  <div className="text-sm font-medium text-ink tnum">{money(i.price * i.qty)}</div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
-      </div>
+
+        {count > 0 && (
+          <div className="border-t border-line p-5 space-y-4">
+            <div className="flex gap-2">
+              <input className={`${inputCls} uppercase`} placeholder="Coupon code" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && applyPromo()} />
+              <button onClick={applyPromo} className={btnGhost}>Apply</button>
+            </div>
+            {appliedPromo && (
+              <div className="flex items-center justify-between text-xs rounded-md bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-emerald-400">
+                <span>{appliedPromo.code} · {appliedPromo.discountPercent}% off</span>
+                <button onClick={() => setAppliedPromo(null)} aria-label="Remove coupon"><Icon name="close" className="w-3.5 h-3.5" /></button>
+              </div>
+            )}
+
+            <dl className="space-y-1.5 text-sm tnum">
+              <div className="flex justify-between text-muted"><dt>Subtotal</dt><dd>{money(cart.total)}</dd></div>
+              {appliedPromo && <div className="flex justify-between text-emerald-400"><dt>Discount</dt><dd>−{money(discountAmount)}</dd></div>}
+              <div className="flex justify-between text-muted"><dt>Delivery</dt><dd>Free</dd></div>
+              <div className="flex justify-between pt-2 border-t border-line text-ink font-semibold text-base"><dt>Total</dt><dd>{money(finalTotal)}</dd></div>
+            </dl>
+
+            <button onClick={checkout} disabled={busy} className={`${btnPrimary} w-full !h-10`}>
+              {busy ? 'Processing…' : `Checkout · ${money(finalTotal)}`}
+            </button>
+          </div>
+        )}
+      </aside>
     </div>
   );
 }
 
-/* Orders & Notifications View */
+/* ---------- orders ---------- */
 function Orders() {
   const [orders, setOrders] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -725,77 +560,74 @@ function Orders() {
   }, []);
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-indigo-500" />
-          Confirmed Orders ({orders.length})
-        </h3>
-
-        {!orders.length ? (
-          <p className="text-xs text-slate-500 py-10 text-center">No orders confirmed yet. Complete a checkout in the store.</p>
-        ) : (
-          <div className="divide-y divide-slate-800 max-h-[500px] overflow-y-auto pr-1 space-y-3">
-            {orders.map((o) => (
-              <div key={o.id} className="pt-3 text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-white font-mono text-sm">ORDER #{o.id}</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60 font-mono font-bold">
-                    ₹{o.total}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 bg-slate-950 p-2.5 rounded-lg border border-slate-800/80">
-                  <div>Payment Ref: <span className="text-slate-300">{o.paymentId}</span></div>
-                  <div>Time: <span className="text-slate-300">{new Date(o.at).toLocaleTimeString()}</span></div>
-                </div>
-
-                {/* Progress Tracking Stepper */}
-                <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pt-1">
-                  <span className="text-emerald-400">✓ Reserved</span>
-                  <span className="text-emerald-400">✓ Charged</span>
-                  <span className="text-cyan-400">✓ Notified</span>
-                  <span className="text-indigo-400">⚡ Dispatched</span>
-                </div>
-
-                <div className="text-slate-400 text-xs">
-                  {o.items.map((i) => `${i.name} (×${i.qty})`).join(', ')}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">Orders</h1>
+        <p className="text-sm text-muted mt-1">Confirmed orders and customer notifications.</p>
       </div>
 
-      <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-cyan-400" />
-          Simulated Notifications Inbox ({notes.length})
-        </h3>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2 space-y-3">
+          <h2 className="text-sm font-medium text-ink">Orders <span className="text-muted font-normal tnum">({orders.length})</span></h2>
+          {!orders.length ? (
+            <div className="rounded-xl border border-dashed border-line py-16 text-center text-sm text-muted">No orders yet. Complete a checkout in the store.</div>
+          ) : (
+            <ul className="space-y-3">
+              {orders.map((o) => (
+                <li key={o.id} className="rounded-xl border border-line bg-surface p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-ink">Order #{o.id}</div>
+                      <div className="text-xs text-muted tnum">{new Date(o.at).toLocaleString()}</div>
+                    </div>
+                    <div className="text-sm font-semibold text-ink tnum">{money(o.total)}</div>
+                  </div>
+                  <div className="text-sm text-body">{o.items.map((i) => `${i.name} × ${i.qty}`).join(', ')}</div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-3 border-t border-line text-xs text-muted">
+                    {['Reserved', 'Charged', 'Notified', 'Dispatched'].map((s) => (
+                      <span key={s} className="flex items-center gap-1"><Icon name="check" className="w-3.5 h-3.5 text-emerald-500" />{s}</span>
+                    ))}
+                    <span className="ml-auto font-mono">{o.paymentId}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-        {!notes.length ? (
-          <p className="text-xs text-slate-500 py-10 text-center">No notifications dispatched yet.</p>
-        ) : (
-          <div className="divide-y divide-slate-800 max-h-[500px] overflow-y-auto pr-1 space-y-3">
-            {notes.map((n) => (
-              <div key={n.id} className="pt-3 text-xs space-y-1">
-                <div className="text-white font-medium text-xs leading-relaxed">{n.message}</div>
-                <div className="text-slate-500 flex items-center justify-between text-[11px] font-mono pt-1">
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 uppercase">
-                    Channel: {n.channel}
-                  </span>
-                  <span>{new Date(n.at).toLocaleTimeString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-ink">Notifications <span className="text-muted font-normal tnum">({notes.length})</span></h2>
+          {!notes.length ? (
+            <div className="rounded-xl border border-dashed border-line py-16 text-center text-sm text-muted">Nothing sent yet.</div>
+          ) : (
+            <ul className="rounded-xl border border-line bg-surface divide-y divide-line max-h-[520px] overflow-y-auto">
+              {notes.map((n) => (
+                <li key={n.id} className="p-4 space-y-1">
+                  <div className="text-sm text-body">{n.message}</div>
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span className="capitalize">{n.channel}</span>
+                    <span className="tnum">{new Date(n.at).toLocaleTimeString()}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );
 }
 
-/* Service Mesh Topology & Chaos Engineering Studio (Dynatrace Smartscape + Sedai Chaos style) */
+/* ---------- system ---------- */
+const CHAOS_ACTIONS = [
+  { id: 'crash', label: 'Kill process', desc: 'Simulate process termination (SIGKILL).', dot: 'bg-rose-500' },
+  { id: 'slow', label: 'Add latency (4000 ms)', desc: 'Simulate network lag or thread starvation.', dot: 'bg-amber-500' },
+  { id: 'errors', label: 'Inject 5xx errors', desc: 'Simulate a bad deployment.', dot: 'bg-orange-500' },
+  { id: 'leak', label: 'Memory leak', desc: 'Push heap past the 180 MB threshold.', dot: 'bg-purple-500' },
+  { id: 'unhealthy', label: 'Fail health check', desc: 'Return 503 from the health probe.', dot: 'bg-amber-500' },
+  { id: 'reset', label: 'Reset to baseline', desc: 'Clear simulated faults and restore health.', dot: 'bg-emerald-500' },
+];
+
 function System({ health, log }) {
   const [sel, setSel] = useState('payment-service');
   const [msg, setMsg] = useState('');
@@ -803,178 +635,95 @@ function System({ health, log }) {
 
   const inject = async (action) => {
     setInjecting(true);
-    const r = await api(
-      'POST',
-      `/system/chaos/${sel}/${action}`,
-      action === 'slow' ? { ms: 4000 } : action === 'errors' ? { rate: 1 } : {}
-    );
+    const r = await api('POST', `/system/chaos/${sel}/${action}`, action === 'slow' ? { ms: 4000 } : action === 'errors' ? { rate: 1 } : {});
     setInjecting(false);
-    setMsg(r.ok ? `⚡ ${action.toUpperCase()} injected into ${sel}` : `⚠️ Could not reach ${sel}`);
+    const label = CHAOS_ACTIONS.find((c) => c.id === action)?.label || action;
+    setMsg(r.ok ? `${label} applied to ${sel}` : `Could not reach ${sel}`);
     setTimeout(() => setMsg(''), 4500);
   };
 
-  const CHAOS_ACTIONS = [
-    { id: 'crash', label: 'Kill Process (Crash)', desc: 'Simulate SIGKILL process termination', color: 'bg-rose-600 hover:bg-rose-500' },
-    { id: 'slow', label: 'Latency (4000ms)', desc: 'Simulate network lag / thread starvation', color: 'bg-amber-600 hover:bg-amber-500' },
-    { id: 'errors', label: '100% 5xx Spike', desc: 'Simulate bad deployment or internal crash', color: 'bg-orange-600 hover:bg-orange-500' },
-    { id: 'leak', label: 'Memory Leak', desc: 'Simulate heap exhaustion (>180MB threshold)', color: 'bg-purple-600 hover:bg-purple-500' },
-    { id: 'unhealthy', label: 'Unhealthy (503)', desc: 'Fail internal health check probe', color: 'bg-pink-600 hover:bg-pink-500' },
-    { id: 'reset', label: 'Reset Baselines', desc: 'Clear simulated chaos and restore health', color: 'bg-slate-700 hover:bg-slate-600' },
-  ];
-
   return (
-    <div className="space-y-6">
-      {/* Mesh Topology Visual Map */}
-      <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400" />
-              Service Topology & Dependency Mesh
-            </h3>
-            <p className="text-xs text-slate-500">
-              Interactive architectural map. Click any node to select it for live failure injection and deep inspection.
-            </p>
-          </div>
-          <span className="text-xs font-mono text-slate-400">
-            Selected Target: <b className="text-indigo-400">{sel}</b>
-          </span>
-        </div>
-
-        {/* Node Grid Layout with Criticality & Live Telemetry */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {health.map((s) => {
-            const isSel = sel === s.name;
-            const isCrit = CRITICAL.includes(s.name);
-            const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG.down;
-
-            return (
-              <button
-                key={s.name}
-                onClick={() => s.name !== 'api-gateway' && setSel(s.name)}
-                disabled={s.name === 'api-gateway'}
-                className={`text-left p-4 rounded-xl border transition-all duration-200 relative overflow-hidden ${
-                  isSel
-                    ? 'bg-slate-900 border-indigo-500 ring-2 ring-indigo-500/30 shadow-lg'
-                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900'
-                } ${s.name === 'api-gateway' ? 'cursor-default opacity-85' : 'cursor-pointer'}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                    <span className="font-bold text-sm text-white">{s.name}</span>
-                  </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${cfg.bg}`}>
-                    {cfg.label}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-[11px] mb-3">
-                  <span className={`px-1.5 py-0.5 rounded font-mono uppercase text-[10px] ${
-                    isCrit ? 'bg-rose-950 text-rose-300 border border-rose-800/60' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    {isCrit ? 'Critical Service' : 'Non-Critical'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-2 border-t border-slate-800/80 text-slate-400">
-                  <div>
-                    <span className="text-[10px] text-slate-500 block">Latency</span>
-                    <span className="text-slate-200">{s.latencyMs != null ? `${s.latencyMs} ms` : 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 block">Memory RSS</span>
-                    <span className="text-slate-200">{s.memoryMB != null ? `${s.memoryMB} MB` : 'N/A'}</span>
-                  </div>
-                </div>
-
-                {isSel && (
-                  <div className="absolute top-0 right-0 w-2 h-2 bg-indigo-500 rounded-bl" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">System</h1>
+        <p className="text-sm text-muted mt-1">Live service health. Select a service to run a fault-injection test.</p>
       </div>
 
-      {/* Chaos Engineering & Fault Injection Control Room */}
-      <div className="grid lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                <svg className="w-4 h-4 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Chaos Engineering Injection Studio
-              </h3>
-              <p className="text-xs text-slate-500">
-                Trigger synthetic faults to test Sentinel's anomaly detection, dependency correlation, and automated recovery.
-              </p>
-            </div>
-            <span className="text-xs px-3 py-1 rounded-lg bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono">
-              Target: {sel}
-            </span>
-          </div>
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {health.map((s) => {
+          const cfg = STATUS[s.status] || STATUS.down;
+          const isSel = sel === s.name;
+          const locked = s.name === 'api-gateway';
+          return (
+            <button
+              key={s.name}
+              onClick={() => !locked && setSel(s.name)}
+              disabled={locked}
+              className={`text-left rounded-xl border p-4 bg-surface transition-colors ${
+                isSel ? 'border-accent ring-1 ring-accent/40' : 'border-line hover:bg-subtle'
+              } ${locked ? '!cursor-default !opacity-100 hover:!bg-surface' : ''}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-ink">{s.name}</span>
+                <span className={`flex items-center gap-1.5 text-xs ${cfg.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} ${s.status === 'down' ? 'animate-pulse' : ''}`} />
+                  {cfg.label}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-muted">{CRITICAL.includes(s.name) ? 'Critical' : 'Non-critical'}</div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                <div><div className="text-muted">Latency</div><div className="text-ink font-mono tnum mt-0.5">{s.latencyMs != null ? `${s.latencyMs} ms` : '—'}</div></div>
+                <div><div className="text-muted">Memory</div><div className="text-ink font-mono tnum mt-0.5">{s.memoryMB != null ? `${s.memoryMB} MB` : '—'}</div></div>
+              </div>
+            </button>
+          );
+        })}
+      </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+      <div className="grid lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2 rounded-xl border border-line bg-surface">
+          <div className="p-4 border-b border-line flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-medium text-ink">Fault injection</h2>
+              <p className="text-xs text-muted mt-0.5">Test detection and automated recovery.</p>
+            </div>
+            <span className="text-xs text-muted">Target <span className="text-ink font-mono ml-1">{sel}</span></span>
+          </div>
+          <div className="p-4 grid sm:grid-cols-2 gap-3">
             {CHAOS_ACTIONS.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => inject(c.id)}
-                disabled={injecting}
-                className={`${c.color} p-3.5 rounded-xl text-left text-white shadow-md transition-transform duration-150 active:scale-95 space-y-1`}
-              >
-                <div className="font-semibold text-xs">{c.label}</div>
-                <div className="text-[11px] text-white/80 leading-snug">{c.desc}</div>
+              <button key={c.id} onClick={() => inject(c.id)} disabled={injecting} className="text-left rounded-lg border border-line p-3 hover:bg-subtle transition-colors">
+                <div className="flex items-center gap-2 text-sm font-medium text-ink"><span className={`w-2 h-2 rounded-full ${c.dot}`} />{c.label}</div>
+                <div className="text-xs text-muted mt-1">{c.desc}</div>
               </button>
             ))}
           </div>
+          {msg && <div className="mx-4 mb-4 rounded-md bg-subtle px-3 py-2 text-xs text-body font-mono">{msg}</div>}
+        </section>
 
-          {msg && (
-            <div className="p-3 rounded-xl bg-slate-950 border border-indigo-500/50 text-indigo-300 text-xs font-mono flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-              {msg}
-            </div>
-          )}
-        </div>
-
-        {/* Real-time State Change Event Feed */}
-        <div className="lg:col-span-4 p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-slate-400" />
-              State Transitions ({log.length})
-            </h3>
-            <span className="text-[11px] text-slate-500">Live feed</span>
+        <section className="rounded-xl border border-line bg-surface">
+          <div className="p-4 border-b border-line flex items-center justify-between">
+            <h2 className="text-sm font-medium text-ink">Activity</h2>
+            <span className="text-xs text-muted tnum">{log.length} events</span>
           </div>
-
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          <ul className="max-h-80 overflow-y-auto divide-y divide-line">
             {!log.length ? (
-              <p className="text-xs text-slate-500 py-6 text-center italic">
-                Zero state transitions observed yet. Inject chaos to see live health transitions.
-              </p>
+              <li className="p-6 text-center text-xs text-muted">No state changes yet.</li>
             ) : (
               log.map((e, idx) => (
-                <div key={idx} className="p-2 rounded-lg bg-slate-950/60 border border-slate-800/80 text-xs space-y-0.5">
-                  <div className="flex items-center justify-between font-mono text-[11px]">
-                    <span className="font-bold text-white">{e.name}</span>
-                    <span className="text-slate-500">{e.t}</span>
-                  </div>
-                  <div className={`font-mono text-[11px] ${e.status === 'up' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {e.msg}
-                  </div>
-                </div>
+                <li key={idx} className="px-4 py-3 text-xs space-y-0.5">
+                  <div className="flex justify-between"><span className="font-medium text-ink">{e.name}</span><span className="text-muted tnum">{e.t}</span></div>
+                  <div className={e.status === 'up' ? 'text-emerald-400' : 'text-rose-400'}>{e.msg}</div>
+                </li>
               ))
             )}
-          </div>
-        </div>
+          </ul>
+        </section>
       </div>
     </div>
   );
 }
 
-/* Master App Container */
+/* ---------- app ---------- */
 export default function App() {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || 'null'));
   const [tab, setTab] = useState('shop');
@@ -990,14 +739,9 @@ export default function App() {
 
   const syncCartCount = async () => {
     const r = await api('GET', '/api/cart');
-    if (r.ok && r.data?.items) {
-      setCartCount(r.data.items.reduce((s, i) => s + i.qty, 0));
-    }
+    if (r.ok && r.data?.items) setCartCount(r.data.items.reduce((s, i) => s + i.qty, 0));
   };
-
-  useEffect(() => {
-    if (user) syncCartCount();
-  }, [user]);
+  useEffect(() => { if (user) syncCartCount(); }, [user]);
 
   const login = (d) => {
     setToken(d.token);
@@ -1005,151 +749,35 @@ export default function App() {
     setUser(d.user);
     syncCartCount();
   };
-
   const logout = () => {
     setToken(null);
     localStorage.removeItem('user');
     setUser(null);
+    setCartCount(0);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Top Telemetry Strip */}
-      <StatusStrip health={health} />
+    <div className="min-h-screen bg-canvas text-ink flex flex-col">
+      <Header user={user} tab={tab} setTab={setTab} health={health} cartCount={cartCount} onCart={() => setIsCartOpen(true)} onLogout={logout} />
 
       {!user ? (
         <Login onLogin={login} />
       ) : (
         <>
-          {/* Main App Navigation Bar */}
-          <header className="bg-slate-900/90 border-b border-slate-800 backdrop-blur sticky top-0 z-40 px-4 py-3">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-indigo-950 font-bold">
-                  🛡️
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-base tracking-tight text-white font-mono">
-                      SENTINEL
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800/80">
-                      v1.0-PROD
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">Autonomous Observability & Microservices Self-Healing</p>
-                </div>
-              </div>
-
-              {/* Navigation Tabs */}
-              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button
-                  onClick={() => setTab('shop')}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    tab === 'shop' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                  Storefront
-                </button>
-
-                <button
-                  onClick={() => setTab('orders')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    tab === 'orders' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  Orders
-                </button>
-
-                <button
-                  onClick={() => setTab('system')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    tab === 'system' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                  Topology & Chaos
-                </button>
-
-                <button
-                  onClick={() => setTab('sentinel')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                    tab === 'sentinel' ? 'bg-indigo-600 text-white shadow ring-2 ring-indigo-400/40' : 'text-indigo-400 hover:text-white'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Davis AI / Sentinel
-                </button>
-              </div>
-
-              {/* User Bar & Cart Trigger */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setIsCartOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition flex items-center gap-2 border border-slate-700"
-                >
-                  <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span>Cart</span>
-                  {cartCount > 0 && (
-                    <span className="w-4 h-4 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center font-bold">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
-
-                <span className="text-xs text-slate-400 font-mono hidden sm:inline">
-                  {user.name || user.email}
-                </span>
-
-                <button
-                  onClick={logout}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Workspace Body */}
-          <main className="max-w-7xl mx-auto p-4 sm:p-6 w-full flex-1">
-            {tab === 'shop' && <Shop onCart={syncCartCount} toast={toast} onOpenCart={() => setIsCartOpen(true)} />}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full flex-1">
+            {tab === 'shop' && <Shop onCart={syncCartCount} toast={toast} />}
             {tab === 'orders' && <Orders />}
             {tab === 'system' && <System health={health} log={log} />}
             {tab === 'sentinel' && <Sentinel />}
           </main>
-
-          {/* Slide-Over Cart Drawer */}
-          <CartDrawer
-            isOpen={isCartOpen}
-            onClose={() => setIsCartOpen(false)}
-            toast={toast}
-            goOrders={() => setTab('orders')}
-          />
+          <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} toast={toast} goOrders={() => setTab('orders')} onChange={syncCartCount} />
         </>
       )}
 
-      {/* Global Interactive Toast Notification */}
       {toastMsg && (
-        <div className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-2xl border text-xs font-medium flex items-center gap-3 transition-all transform duration-200 ${
-          toastMsg.ok
-            ? 'bg-emerald-950 border-emerald-600 text-emerald-200'
-            : 'bg-rose-950 border-rose-600 text-rose-200'
-        }`}>
-          <span>{toastMsg.ok ? '✓' : '⚠️'}</span>
-          <span>{toastMsg.m}</span>
+        <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2.5 rounded-lg bg-ink text-canvas px-4 py-2.5 text-sm shadow-xl">
+          <span className={`w-2 h-2 rounded-full ${toastMsg.ok ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+          {toastMsg.m}
         </div>
       )}
     </div>

@@ -2,41 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens (space-separated RGB so Tailwind opacity modifiers work) */
+:root {
+  color-scheme: dark;
+  --canvas: 9 9 11;
+  --surface: 24 24 27;
+  --subtle: 39 39 42;
+  --line: 39 39 42;
+  --ink: 250 250 250;
+  --body: 212 212 216;
+  --muted: 161 161 170;
+  --accent: 37 99 235;
+  --accent-hover: 29 78 216;
+  --link: 96 165 250;
+}
+html[data-theme='light'] {
+  color-scheme: light;
+  --canvas: 250 250 250;
+  --surface: 255 255 255;
+  --subtle: 244 244 245;
+  --line: 228 228 231;
+  --ink: 24 24 27;
+  --body: 63 63 70;
+  --muted: 113 113 122;
+  --accent: 37 99 235;
+  --accent-hover: 29 78 216;
+  --link: 37 99 235;
+}
+
 @layer base {
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    @apply bg-slate-950 text-slate-100 antialiased font-sans selection:bg-indigo-500 selection:text-white;
+    @apply bg-canvas text-ink antialiased font-sans selection:bg-accent selection:text-white;
+    font-feature-settings: 'cv11', 'ss01';
   }
+  :focus-visible { @apply outline-none ring-2 ring-accent/50; }
+  button { @apply cursor-pointer disabled:cursor-not-allowed disabled:opacity-60; }
 }
 
-/* Custom sleek scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
+/* Thin, quiet scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgb(var(--line)); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted) / 0.6); }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
 
-/* Glowing pulse effects */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.02); }
-}
+/* Tabular numbers for prices / metrics */
+.tnum { font-variant-numeric: tabular-nums; }
 
-.animate-pulse-subtle {
-  animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Glassmorphism utility */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.5);
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
