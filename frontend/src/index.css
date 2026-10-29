@@ -54,3 +54,12 @@ html[data-theme='light'] {
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Subtle dotted texture (used on hero + login panel) */
+.bg-dots { background-image: radial-gradient(rgb(var(--muted) / 0.35) 1px, transparent 1px); background-size: 18px 18px; }
+.bg-dots-fade {
+  background-image: radial-gradient(rgb(var(--muted) / 0.35) 1px, transparent 1px);
+  background-size: 18px 18px;
+  -webkit-mask-image: linear-gradient(to bottom left, black, transparent 70%);
+  mask-image: linear-gradient(to bottom left, black, transparent 70%);
+}

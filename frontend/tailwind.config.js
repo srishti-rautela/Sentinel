@@ -51,6 +51,18 @@ export default {
         ink: token('ink'), body: token('body'), muted: token('muted'),
         accent: token('accent'), 'accent-hover': token('accent-hover'), link: token('link'),
       },
+      keyframes: {
+        fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
+        fadeUp: { from: { opacity: '0', transform: 'translateY(8px)' }, to: { opacity: '1', transform: 'none' } },
+        scaleIn: { from: { opacity: '0', transform: 'scale(0.97)' }, to: { opacity: '1', transform: 'none' } },
+        slideIn: { from: { transform: 'translateX(100%)' }, to: { transform: 'none' } },
+      },
+      animation: {
+        'fade-in': 'fadeIn 150ms ease-out both',
+        'fade-up': 'fadeUp 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both',
+        'scale-in': 'scaleIn 160ms ease-out both',
+        'slide-in': 'slideIn 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both',
+      },
       borderColor: { DEFAULT: token('line') },
       // flatter, tighter corners and quieter shadows = more "product", less "template"
       borderRadius: { lg: '0.375rem', xl: '0.5rem', '2xl': '0.625rem', '3xl': '0.75rem' },
