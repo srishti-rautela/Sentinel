@@ -1,0 +1,17 @@
+{
+  "name": "sentinel-microservices",
+  "version": "1.0.0",
+  "description": "Sentinel Implementation-1: sample e-commerce microservices (monitored workload)",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix frontend && npm install --prefix sentinel-console",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:sentinel-console": "npm run build --prefix sentinel-console",
+    "dev:sentinel-console": "npm run dev --prefix sentinel-console",
+    "start:all": "node scripts/start-all.js",
+    "test": "node scripts/smoke.js",
+    "test:policy": "node scripts/policy-test.js",
+    "test:heal": "node scripts/heal-test.js",
+    "traffic": "node scripts/traffic.js"
+  },
+  "dependencies": { "express": "^4.21.2", "jsonwebtoken": "^9.0.2", "prom-client": "^15.1.3" }
+}

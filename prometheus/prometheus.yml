@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: api-gateway
+    static_configs: [{ targets: ['api-gateway:3000'] }]
+  - job_name: auth-service
+    static_configs: [{ targets: ['auth-service:3001'] }]
+  - job_name: product-service
+    static_configs: [{ targets: ['product-service:3002'] }]
+  - job_name: order-service
+    static_configs: [{ targets: ['order-service:3003'] }]
+  - job_name: cart-service
+    static_configs: [{ targets: ['cart-service:3004'] }]
+  - job_name: payment-service
+    static_configs: [{ targets: ['payment-service:3005'] }]
+  - job_name: notification-service
+    static_configs: [{ targets: ['notification-service:3006'] }]
+  - job_name: incident-manager
+    static_configs: [{ targets: ['incident-manager:4001'] }]
+  - job_name: policy-engine
+    static_configs: [{ targets: ['policy-engine:4003'] }]
