@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import multer from 'multer';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { protect, adminOnly } from '../middleware/auth.js';
+const router = Router(); const here = path.dirname(fileURLToPath(import.meta.url)); const uploadDir = path.resolve(here, '../../uploads');
+const storage = multer.diskStorage({ destination: (_req,_file,cb)=>cb(null,uploadDir), filename: (_req,file,cb)=>cb(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`) });
+const maxBytes = Math.max(1, Number(process.env.MAX_UPLOAD_MB || 5)) * 1024 * 1024;
+const upload = multer({ storage, limits: { fileSize: maxBytes, files: 1 }, fileFilter: (_req,file,cb)=> { const ext = path.extname(file.originalname).toLowerCase(); const valid = ['.jpg','.jpeg','.png','.webp'].includes(ext) && ['image/jpeg','image/png','image/webp'].includes(file.mimetype); cb(valid ? null : new Error('Upload a JPG, PNG, or WebP image.'), valid); } });
+router.post('/', protect, adminOnly, upload.single('image'), (req,res)=>{ if (!req.file) return res.status(400).json({ message: 'Choose an image file.' }); res.status(201).json({ image: `/uploads/${req.file.filename}` }); });
+export default router;

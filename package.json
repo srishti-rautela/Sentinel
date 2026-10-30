@@ -1,0 +1,14 @@
+{
+  "name": "sentinel-platform-v2",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Independent Sentinel multi-tenant monitoring platform starter",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "start": "npm start --prefix backend",
+    "build": "npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

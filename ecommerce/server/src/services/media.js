@@ -1,0 +1,10 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import { app, startService } from './base.js';
+import uploadRoutes from '../routes/uploadRoutes.js';
+import { log } from '../observability/telemetry.js';
+const here = path.dirname(fileURLToPath(import.meta.url));
+app.use('/uploads', express.static(path.resolve(here, '../../uploads'), { maxAge: '1d', immutable: true }));
+app.use('/', uploadRoutes);
+startService('media-service', 5004).catch(err => { log('error','startup_failed',{error:err}); process.exit(1); });
