@@ -1,0 +1,18 @@
+{
+  "services": {
+    "api-gateway": "critical",
+    "auth-service": "critical",
+    "order-service": "critical",
+    "payment-service": "critical",
+    "product-service": "non-critical",
+    "cart-service": "non-critical",
+    "notification-service": "non-critical"
+  },
+  "allowedActions": ["restart", "scale"],
+  "scale": { "maxReplicas": 5 },
+  "cooldown": { "maxActions": 3, "windowSec": 300 },
+  "environments": {
+    "production": { "criticalRequiresApproval": true },
+    "dev": { "criticalRequiresApproval": false }
+  }
+}
