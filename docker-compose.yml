@@ -1,0 +1,276 @@
+# Sentinel Platform + Tilda Goods e-commerce microservices — one unified stack.
+#   docker compose up --build -d
+# Sentinel:  http://localhost:5173   Storefront: http://localhost:5174   Gateway: http://localhost:5000/api/health
+# Grafana:   http://localhost:3001   Prometheus: http://localhost:9090   Loki: http://localhost:3100
+
+x-tilda-env: &tilda-env
+  MONGODB_URI: mongodb://mongo:27017/tilda
+  JWT_SECRET: ${TILDA_JWT_SECRET:-tilda-local-dev-jwt-secret-change-me-0123456789}
+  JWT_EXPIRES_IN: 7d
+  CLIENT_URL: http://localhost:5174,http://127.0.0.1:5174
+  AUTH_SERVICE_URL: http://auth:5001
+  PRODUCT_SERVICE_URL: http://products:5002
+  ORDER_SERVICE_URL: http://orders:5003
+  MEDIA_SERVICE_URL: http://media:5004
+
+x-tilda-service: &tilda-service
+  build: ./ecommerce/server
+  restart: unless-stopped
+  networks: [sentinel-net]
+
+services:
+  # ───────────────────────── Sentinel ─────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sentinel-api
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:-local-docker-development-secret-change-me}
+      FRONTEND_ORIGIN: http://localhost:5173
+      SENTINEL_DB_PATH: /app/backend/data.json
+      # Trusted internal monitoring (Docker network only — the public-URL validator is unchanged)
+      DOCKER_MONITORING: "true"
+      SERVICE_CHECK_INTERVAL_MS: ${SERVICE_CHECK_INTERVAL_MS:-5000}
+      SERVICE_FAILURE_THRESHOLD: ${SERVICE_FAILURE_THRESHOLD:-2}
+      SERVICE_RECOVERY_THRESHOLD: ${SERVICE_RECOVERY_THRESHOLD:-2}
+      RECOVERY_CONTROLLER_URL: http://recovery-controller:7000
+      RECOVERY_TOKEN: ${RECOVERY_TOKEN:-sentinel-local-recovery-token-change-me}
+      LOKI_URL: http://loki:3100
+      SENTINEL_SERVICE_STATE_PATH: /app/state/service-state.json
+    ports:
+      - "127.0.0.1:4000:4000"
+    volumes:
+      - ./backend/data.json:/app/backend/data.json
+      - sentinel-state:/app/state
+    networks: [sentinel-net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: sentinel-ui
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:4000
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [sentinel-net]
+    restart: unless-stopped
+
+  # ─────────────── Recovery Controller (only component with Docker socket access) ───────────────
+  recovery-controller:
+    build: ./recovery-controller
+    container_name: sentinel-recovery-controller
+    environment:
+      RECOVERY_TOKEN: ${RECOVERY_TOKEN:-sentinel-local-recovery-token-change-me}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [sentinel-net]          # no published ports: reachable only from the Docker network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ───────────────────────── Tilda Goods e-commerce ─────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: tilda-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    networks: [sentinel-net]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    <<: *tilda-service
+    container_name: tilda-auth
+    command: ["npm", "run", "auth"]
+    environment:
+      <<: *tilda-env
+      PORT: 5001
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tilda.local}
+      ADMIN_NAME: ${ADMIN_NAME:-Store Admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ChangeThisAdminPassword123!}
+    depends_on:
+      mongo: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+  products:
+    <<: *tilda-service
+    container_name: tilda-products
+    command: ["npm", "run", "products"]
+    environment:
+      <<: *tilda-env
+      PORT: 5002
+    depends_on:
+      mongo: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+  orders:
+    <<: *tilda-service
+    container_name: tilda-orders
+    command: ["npm", "run", "orders"]
+    environment:
+      <<: *tilda-env
+      PORT: 5003
+    depends_on:
+      mongo: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+  media:
+    <<: *tilda-service
+    container_name: tilda-media
+    command: ["npm", "run", "media"]
+    environment:
+      <<: *tilda-env
+      PORT: 5004
+    volumes:
+      - media_uploads:/app/uploads
+    depends_on:
+      mongo: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+  gateway:
+    <<: *tilda-service
+    container_name: tilda-gateway
+    command: ["npm", "run", "gateway"]
+    environment:
+      <<: *tilda-env
+      GATEWAY_PORT: 5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    # Start-order only. Deliberately NOT "service_healthy": the gateway must keep running (and return 503s)
+    # when an individual downstream service is stopped.
+    depends_on: [auth, products, orders, media]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+  storefront:
+    build:
+      context: ./ecommerce/client
+      args:
+        VITE_API_URL: http://localhost:5000/api
+    container_name: tilda-storefront
+    ports:
+      - "127.0.0.1:5174:5174"
+    networks: [sentinel-net]
+    restart: unless-stopped
+
+  # ───────────────────────── Observability ─────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: sentinel-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [sentinel-net]
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: sentinel-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - loki-data:/loki
+    networks: [sentinel-net]
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.4.2
+    container_name: sentinel-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail-positions:/tmp
+    depends_on:
+      loki:
+        condition: service_started
+    networks: [sentinel-net]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: sentinel-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-this-password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./observability/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks: [sentinel-net]
+    restart: unless-stopped
+
+networks:
+  sentinel-net:
+    name: sentinel-net
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  promtail-positions:
+  mongo_data:
+  media_uploads:
+  sentinel-state:

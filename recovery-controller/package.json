@@ -1,0 +1,7 @@
+{
+  "name": "sentinel-recovery-controller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated Recovery Controller: restarts only allowlisted e-commerce containers on authorized request.",
+  "scripts": { "start": "node server.js" }
+}

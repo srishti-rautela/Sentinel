@@ -1,0 +1,278 @@
+{
+ "uid": "tilda-services",
+ "title": "Tilda Goods \u2014 microservices",
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "10s",
+ "time": {
+  "from": "now-30m",
+  "to": "now"
+ },
+ "tags": [
+  "sentinel",
+  "tilda"
+ ],
+ "panels": [
+  {
+   "id": 1,
+   "title": "Service up (Sentinel health checks)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sentinel_service_up",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "none"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 2,
+   "title": "Health-check response time",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 0,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sentinel_service_response_time_seconds",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 3,
+   "title": "HTTP requests / s",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (service) (rate(tilda_http_requests_total[1m]))",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 4,
+   "title": "HTTP 5xx errors / s",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 8,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (service) (rate(tilda_http_errors_total[1m]))",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 5,
+   "title": "Request latency (avg)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sum by (service) (rate(tilda_http_request_duration_seconds_sum[1m])) / sum by (service) (rate(tilda_http_request_duration_seconds_count[1m]))",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 6,
+   "title": "Process uptime",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 12,
+    "y": 16,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "tilda_service_uptime_seconds",
+     "legendFormat": "{{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 7,
+   "title": "Failed health checks / outages / restarts",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 0,
+    "y": 24,
+    "w": 8,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sentinel_service_failures_total",
+     "legendFormat": "failures {{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 8,
+   "title": "Outages declared (DOWN)",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 8,
+    "y": 24,
+    "w": 8,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sentinel_service_outages_total",
+     "legendFormat": "outages {{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 10,
+   "title": "Restarts observed",
+   "type": "timeseries",
+   "gridPos": {
+    "x": 16,
+    "y": 24,
+    "w": 8,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus"
+   },
+   "targets": [
+    {
+     "expr": "sentinel_service_restarts_total",
+     "legendFormat": "restarts {{service}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   }
+  },
+  {
+   "id": 9,
+   "title": "E-commerce service logs (Loki)",
+   "type": "logs",
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 24,
+    "h": 10
+   },
+   "datasource": {
+    "type": "loki"
+   },
+   "targets": [
+    {
+     "expr": "{container=~\"tilda-(gateway|auth|products|orders|media)\"}",
+     "refId": "A"
+    }
+   ],
+   "options": {
+    "showTime": true,
+    "wrapLogMessage": true
+   }
+  }
+ ]
+}

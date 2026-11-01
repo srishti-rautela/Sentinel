@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: sentinel-api          # includes sentinel_service_* health/uptime/restart/failure metrics for the e-commerce services
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['backend:4000']
+
+  - job_name: tilda-services        # HTTP requests / errors / latency / uptime emitted by each microservice itself
+    metrics_path: /metrics
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['gateway:5000']
+        labels: { tilda_service: gateway }
+      - targets: ['auth:5001']
+        labels: { tilda_service: auth }
+      - targets: ['products:5002']
+        labels: { tilda_service: products }
+      - targets: ['orders:5003']
+        labels: { tilda_service: orders }
+      - targets: ['media:5004']
+        labels: { tilda_service: media }
+
+  - job_name: recovery-controller
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['recovery-controller:7000']
