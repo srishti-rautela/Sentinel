@@ -242,7 +242,11 @@ app.post('/api/projects/:id/check', auth, tenantProject, async (req, res) => {
   if (req.project.connectionType !== 'url') return res.status(409).json({ error: 'This project needs a Sentinel agent integration before live checks can run.' });
   res.json(await checkProject(req.project));
 });
+<<<<<<< HEAD
 app.get('/api/projects/:id/checks', auth, tenantProject, (req, res) => req.project.connectionType === 'docker' ? res.json(dockerMonitor.projectChecks(req.project)) : res.json(db.checks.filter(c => c.projectId === req.project.id && c.workspaceId === req.user.workspaceId).slice().reverse()));
+=======
+app.get('/api/projects/:id/checks', auth, tenantProject, (req, res) => req.project.connectionType === 'docker' ? res.json(dockerMonitor.projectChecks(req.project)) : res.json(db.checks.filter(c => c.projectId === req.project.id && c.workspaceId === req.user.workspaceId).slice(-50).reverse()));
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
 app.get('/api/incidents', auth, (req, res) => res.json(db.incidents.filter(i => i.workspaceId === req.user.workspaceId).sort((a,b) => b.createdAt.localeCompare(a.createdAt)).map(i => ({ ...i, source: i.source || 'url' }))));
 app.post('/api/incidents/:id/resolve', auth, (req, res) => {
   const incident = db.incidents.find(i => i.id === req.params.id && i.workspaceId === req.user.workspaceId);

@@ -568,7 +568,11 @@ function createDockerMonitor({ app, auth, db, saveDb, newId, dbPath }) {
     if (svc && svc.status !== 'HEALTHY') svc.ack[incident.projectId] = iso();
     slog('warn', 'incident_resolved_manually', { incidentId: incident.id, serviceName: incident.serviceName, by: user.email, serviceStatus: svc?.status });
   }
+<<<<<<< HEAD
   function projectChecks(project) { return (state.projectChecks[project.stackId] || []).slice().reverse().map(c => ({ ...c, projectId: project.id, workspaceId: project.workspaceId })); }
+=======
+  function projectChecks(project) { return (state.projectChecks[project.stackId] || []).slice(-50).reverse().map(c => ({ ...c, projectId: project.id, workspaceId: project.workspaceId })); }
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
   async function checkProjectNow(project) {
     await Promise.allSettled(stacks.get(project.stackId).services.map(d => checkService(`${project.stackId}:${d.key}`)));
     updateProjects(); return project.lastCheck;

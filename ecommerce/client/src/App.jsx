@@ -90,7 +90,10 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+<<<<<<< HEAD
   const [serviceStatus, setServiceStatus] = useState(null);
+=======
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState('newest');
@@ -150,6 +153,7 @@ export default function App() {
     setLoading(true);
     try {
       const data = await api('/products');
+<<<<<<< HEAD
             setProducts((data.products || []).map((p) => ({
         ...p,
         image: resolveProductImage(p.image),
@@ -158,6 +162,18 @@ export default function App() {
     } catch (e) {
       setError(e.message || 'The product service is currently unavailable.');
       setProducts([]);
+=======
+            setProducts(data.products.map((p) => ({
+        ...p,
+        image: String(p.image || '').startsWith('/uploads/')
+          ? resolveProductImage(p.image)
+          : (nameImages[String(p.name || '').trim().toLowerCase()] || resolveProductImage(p.image)),
+      })));
+      setError('');
+    } catch (e) {
+      setError(`${e.message} Showing local preview items until the API is available.`);
+      setProducts(seedFallback);
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
     } finally {
       setLoading(false);
     }
@@ -167,6 +183,7 @@ export default function App() {
     loadProducts();
   }, [loadProducts]);
 
+<<<<<<< HEAD
   // Poll gateway dependency health so the storefront reflects real microservice outages.
   useEffect(() => {
     let active = true;
@@ -196,6 +213,8 @@ export default function App() {
     }
   }, [productServiceDown, serviceStatus?.products]);
 
+=======
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
   useEffect(() => {
     localStorage.setItem('tilda_cart', JSON.stringify(cart));
   }, [cart]);
@@ -617,6 +636,7 @@ export default function App() {
           setPage('detail');
         }}
       >
+<<<<<<< HEAD
         {!mediaServiceDown && (
           <img
             src={resolveProductImage(product.image)}
@@ -626,6 +646,17 @@ export default function App() {
           />
         )}
         {mediaServiceDown && <div className="service-image-placeholder" aria-label="Images temporarily unavailable" />}
+=======
+        <img
+          src={resolveProductImage(product.image)}
+          alt={product.name}
+          loading="lazy"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = '/images/notebook.jpg';
+          }}
+        />
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
 
         <span className="image-label">
           {product.stock > 0 ? 'In stock' : 'Sold out'}
@@ -816,6 +847,7 @@ export default function App() {
           </select>
         </div>
 
+<<<<<<< HEAD
         {(productServiceDown || error) && (
           <div className="notice" role="status">
             <span>{productServiceDown ? 'Product service is currently unavailable. The catalogue will return when the service recovers.' : error}</span>
@@ -827,6 +859,14 @@ export default function App() {
             <span>Media service is unavailable. Product images are temporarily hidden; product details remain available.</span>
           </div>
         )}
+=======
+        {error && (
+          <div className="notice">
+            <span>{error}</span>
+            <button onClick={loadProducts}>Retry</button>
+          </div>
+        )}
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
 
         {loading ? (
           <div className="loading-grid">
@@ -904,7 +944,11 @@ export default function App() {
           <div className="cart-list">
             {cartItems.map(({ product, quantity }) => (
               <div className="cart-row" key={product._id}>
+<<<<<<< HEAD
                 {!mediaServiceDown && <img src={resolveProductImage(product.image)} alt={product.name} />}
+=======
+                <img src={resolveProductImage(product.image)} alt={product.name} />
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
                 <div className="cart-row-info">
                   <p className="eyebrow">{product.category}</p>
                   <h3>{product.name}</h3>
@@ -996,12 +1040,23 @@ const detailPage =
 
       <div className="detail-layout">
         <div className="detail-image">
+<<<<<<< HEAD
           {!mediaServiceDown && <img
             src={resolveProductImage(selected.image)}
             alt={selected.name || 'Product'}
             onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.style.visibility = 'hidden'; }}
           />}
           {mediaServiceDown && <div className="service-image-placeholder" aria-label="Images temporarily unavailable" />}
+=======
+          <img
+            src={resolveProductImage(selected.image)}
+            alt={selected.name || 'Product'}
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = '/images/notebook.jpg';
+            }}
+          />
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
         </div>
 
         <div className="detail-copy">
@@ -1270,7 +1325,11 @@ const detailPage =
 
           {cartItems.map((item) => (
             <div className="mini-order" key={item.id}>
+<<<<<<< HEAD
               {!mediaServiceDown && <img src={resolveProductImage(item.product.image)} alt="" />}
+=======
+              <img src={resolveProductImage(item.product.image)} alt="" />
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
               <span>{item.product.name} <small>× {item.quantity}</small></span>
               <b>{money(item.product.price * item.quantity)}</b>
             </div>
@@ -1348,7 +1407,11 @@ const detailPage =
               <div className="order-card-items">
                 {order.items.map((item, index) => (
                   <div key={index}>
+<<<<<<< HEAD
                     {!mediaServiceDown && <img src={resolveProductImage(item.image)} alt="" />}
+=======
+                    <img src={resolveProductImage(item.image)} alt="" />
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
                     <span>{item.name} <small>× {item.quantity}</small></span>
                     <b>{money(item.price * item.quantity)}</b>
                   </div>
@@ -1526,7 +1589,11 @@ const detailPage =
                   <tr key={product._id}>
                     <td>
                       <div className="table-product">
+<<<<<<< HEAD
                         {!mediaServiceDown && <img src={resolveProductImage(product.image)} alt="" />}
+=======
+                        <img src={resolveProductImage(product.image)} alt="" />
+>>>>>>> 229d145cb40910094ad200fde98bcc972386a10e
                         <div><b>{product.name}</b><small>{product.category}</small></div>
                       </div>
                     </td>
